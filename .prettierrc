@@ -1,0 +1,12 @@
+{
+  "jsxSingleQuote": false,
+  "printWidth": 120,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "arrowParens": "always",
+  "cursorOffset": -1,
+  "rangeEnd": -1,
+  "rangeStart": -1,
+  "trailingComma": "es5"
+}

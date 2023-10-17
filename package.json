@@ -1,25 +1,28 @@
 {
-  "name": "spectra",
+  "name": "polyglot",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS='--inspect' next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "next": "13.5.4",
     "react": "^18",
     "react-dom": "^18",
-    "next": "13.5.4"
+    "use-typed-reducer": "3.3.3"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
     "postcss": "^8",
-    "tailwindcss": "^3"
+    "prettier": "3.0.3",
+    "prettier-plugin-tailwindcss": "0.5.5",
+    "tailwindcss": "^3",
+    "typescript": "5.2.2"
   }
 }
