@@ -1,58 +1,9 @@
 import React from "react";
-import { CurrencyCode, getCurrency } from "~/polyglot/locale-currency";
 import { Locales } from "~/polyglot/locales";
-import { Unit } from "~/polyglot/unit";
+import { createFormatters, Formatters, parse } from "~/polyglot/parser";
+import { PolyglotConfig, PolyglotFullConfig } from "~/polyglot/types";
 
 type Label = string | React.ReactElement | React.ReactNode;
-
-type DateFormat = Partial<{
-  day: "numeric" | "2-digit";
-  era: "long" | "short" | "narrow";
-  formatMatcher: "best fit" | "basic";
-  hour12: boolean;
-  hour: "numeric" | "2-digit";
-  localeMatcher: "best fit" | "lookup";
-  minute: "numeric" | "2-digit";
-  month: "numeric" | "2-digit" | "long" | "short" | "narrow";
-  second: "numeric" | "2-digit";
-  timeZone: string;
-  timeZoneName: "short" | "long" | "shortOffset" | "longOffset" | "shortGeneric" | "longGeneric";
-  weekday: "long" | "short" | "narrow";
-  year: "numeric" | "2-digit";
-}>;
-
-type NumberFormat = Partial<{
-  currency: string;
-  currencySign: string;
-  localeMatcher: string;
-  maximumFractionDigits: number;
-  maximumSignificantDigits: number;
-  minimumFractionDigits: number;
-  minimumIntegerDigits: number;
-  minimumSignificantDigits: number;
-  useGrouping: boolean;
-}>;
-
-type PolyglotConfig = Partial<{
-  date: DateFormat;
-  datetime: DateFormat;
-  money: NumberFormat;
-  number: NumberFormat;
-  percent: NumberFormat;
-  time: DateFormat;
-  unit: Omit<NumberFormat, "currency" | "currencySign"> & {
-    type: Unit;
-    display?: "short" | "long" | "narrow";
-  };
-  currency: Omit<NumberFormat, "currency" | "currencySign"> &
-    Partial<{
-      code: CurrencyCode;
-      sign: "accounting" | "standard";
-      display: "code" | "symbol" | "narrowSymbol" | "name";
-    }>;
-}>;
-
-export type PolyglotFullConfig = PolyglotConfig & { languages?: Partial<Record<Locales, PolyglotConfig>> };
 
 type GenericTranslationFn = (props: any, options?: PolyglotFullConfig) => any;
 
@@ -63,39 +14,14 @@ export const createPolyglotNative = <Locale extends Locales, Map extends (format
   map: Map
 ) => ({ map, language }) as const;
 
-export type InferTranslationMap<Config extends ReturnType<typeof createPolyglotNative>> = (
+export type InferNativeLanguage<Config extends ReturnType<typeof createPolyglotNative>> = (
   formatters: Formatters
 ) => ReturnType<Config["map"]>;
 
-const createFormatters = (lang: string, options?: PolyglotConfig) => ({
-  date: new Intl.DateTimeFormat(lang).format,
-  time: new Intl.DateTimeFormat(lang, {
-    hour: "numeric",
-    minute: "numeric",
-    ...options?.time,
-  }).format,
-  datetime: new Intl.DateTimeFormat(lang, {
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-    ...options?.datetime,
-  }).format,
-  number: new Intl.NumberFormat(lang, options?.number).format,
-  unit: (unit: Unit, n: number) => new Intl.NumberFormat(lang, { unit, style: "unit", ...options?.unit }).format(n),
-  percent: new Intl.NumberFormat(lang, { style: "percent", ...options?.percent }).format,
-  money: new Intl.NumberFormat(lang, {
-    style: "currency",
-    currency: getCurrency(lang) as string,
-    ...options?.money,
-  }).format,
-});
-
-type Formatters = {
-  [K in keyof ReturnType<typeof createFormatters>]: ReturnType<typeof createFormatters>[K];
-};
-
-const has = <T extends {}, K extends keyof T>(o: T, k: K | string): k is K =>
+const has = <T extends {}, K extends keyof T | string>(o: T, k: K | string): k is K =>
   Object.prototype.hasOwnProperty.call(o, k);
+
+const createCompare = (locale: string) => new Intl.Collator(locale, {});
 
 export const createPolyglot = <
   Config extends ReturnType<typeof createPolyglotNative>,
@@ -114,17 +40,42 @@ export const createPolyglot = <
   type LanguageMap = ReturnType<Config["map"]>;
   type DefaultLanguage = Config["language"];
   type Languages = keyof Translations | DefaultLanguage;
+  type Comparator = ReturnType<typeof createCompare>;
+  type AcceptedLanguages = keyof Translations | DefaultLanguage;
+  type Formatters = ReturnType<typeof createFormatters>;
 
   const defaultFormatters = createFormatters(initialConfig.language, options);
 
   const defaultMap: TranslationMap = initialConfig.map(defaultFormatters);
 
-  const defaultLanguage: Languages = initialConfig.language;
+  const defaultLanguage: AcceptedLanguages = initialConfig.language;
+
+  const cache = new Map<
+    AcceptedLanguages,
+    {
+      language: keyof Translations | DefaultLanguage;
+      map: TranslationMap;
+      compare: Comparator;
+      format: Formatters;
+    }
+  >();
 
   const config = {
+    compare: createCompare(defaultLanguage),
     format: defaultFormatters,
-    language: defaultLanguage as keyof Translations | DefaultLanguage,
+    language: defaultLanguage,
     map: defaultMap,
+  };
+
+  const setCachedConfig = (
+    language: AcceptedLanguages,
+    comparator: Comparator,
+    format: Formatters,
+    map: TranslationMap
+  ) => {
+    const result = { map, compare: comparator, format, language };
+    cache.set(language, result);
+    return result;
   };
 
   const alias = Object.keys(config.map).reduce<{ [K in keyof LanguageMap]: K }>(
@@ -150,10 +101,9 @@ export const createPolyglot = <
   };
 
   const getFromLanguageMap = async <Language extends Locales, V extends keyof LanguageMap>(
-    language: Language,
-    key: V,
-    props: LanguageMap[V] extends GenericTranslationFn ? Parameters<LanguageMap[V]>[0] : null,
-    options?: PolyglotFullConfig
+    ...[language, key, props, options]: LanguageMap[V] extends GenericTranslationFn
+      ? [language: Language, key: V, props: Parameters<LanguageMap[V]>[0], options?: PolyglotFullConfig]
+      : [language: Language, key: V, options?: PolyglotFullConfig]
   ) => {
     if (language === initialConfig.language) {
       const prop = config.map[key as string];
@@ -164,18 +114,42 @@ export const createPolyglot = <
     return typeof prop === "function" ? prop(props) : prop;
   };
 
-  const get = <V extends keyof LanguageMap>(
-    key: V,
-    props: LanguageMap[V] extends GenericTranslationFn ? Parameters<LanguageMap[V]>[0] : null,
-    options?: PolyglotFullConfig
+  const getFromMap =
+    (conf: (typeof config)["map"]) =>
+    <V extends keyof LanguageMap>(
+      ...[key, props, options]: LanguageMap[V] extends GenericTranslationFn
+        ? [key: V, props: Parameters<LanguageMap[V]>[0], options?: PolyglotFullConfig]
+        : [key: V, options?: PolyglotFullConfig]
+    ): string => {
+      if (has(conf, key as string)) {
+        const prop = conf[key as string];
+        return parse(typeof prop === "function" ? prop(props, options) : prop, props ?? {}, config.format);
+      }
+      if (options?.fallback) {
+        const prop = conf[options.fallback];
+        return parse(typeof prop === "function" ? prop(props, options) : prop, props ?? {}, config.format);
+      }
+      throw new Error(`Property ${key as string} not exist in`, conf);
+    };
+
+  const createLanguage = async (
+    newLanguage: keyof Translations | DefaultLanguage,
+    extraOptions?: PolyglotFullConfig
   ) => {
-    if (config.language === initialConfig.language) {
-      const prop = config.map[key as string];
-      return typeof prop === "function" ? prop(props, options) : prop;
+    if (newLanguage !== initialConfig.language && !has(translations || {}, newLanguage as string)) {
+      throw new Error("Language not found");
     }
-    const prop = config.map[key as string];
-    return typeof prop === "function" ? prop(props) : prop;
+    const cached = cache.get(newLanguage);
+    if (cached !== undefined) return cached;
+    const result = await fetchLanguage(newLanguage, extraOptions);
+    return setCachedConfig(newLanguage, createCompare(newLanguage as string), result.format, result.map);
   };
+
+  const get = <V extends keyof LanguageMap>(
+    ...[key, props, options]: LanguageMap[V] extends GenericTranslationFn
+      ? [key: V, props: Parameters<LanguageMap[V]>[0], options?: PolyglotFullConfig]
+      : [key: V, options?: PolyglotFullConfig]
+  ) => getFromMap(config.map)(key as any, props, options);
 
   const setLanguage = async (newLanguage: keyof Translations | DefaultLanguage, extraOptions?: PolyglotFullConfig) => {
     if (newLanguage !== initialConfig.language && !has(translations || {}, newLanguage as string)) {
@@ -185,16 +159,19 @@ export const createPolyglot = <
     config.language = newLanguage;
     config.format = result.format;
     config.map = result.map;
+    config.compare = createCompare(newLanguage as string);
     return config;
   };
 
   return {
-    ...config.format,
     alias,
-    map: config.map,
+    createLanguage,
+    compare: config.compare,
     format: config.format,
     get,
+    parse: <P extends object>(text: string, params: P) => parse(text, params, config.format),
     getFromLanguageMap,
+    map: config.map,
     setLanguage,
     get language() {
       return config.language;

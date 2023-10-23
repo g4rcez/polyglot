@@ -6,7 +6,7 @@ const enUsMap: TranslationMap = (f) => ({
   welcome: "Hello world",
   hello: (props) => `Hello ${props.fulano}`,
   count: `The pronunciation of number ${f.number(100_000)} is one hundred thousand`,
-  unit: (p) => `Weather ${f.unit("fahrenheit", convertCToF(p.celsius))}`,
+  unit: (p) => `Weather ${f.fahrenheit(convertCToF(p.temp))}`,
 });
 
 export default enUsMap;
