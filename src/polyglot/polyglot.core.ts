@@ -137,13 +137,15 @@ export const createPolyglot = <
         ]
   ) => {
     const conf = config.map;
+    const vars = { ...props, ...(props as any).variables };
     if (has(conf, key as string)) {
       const prop = conf[key as string];
-      return parse(isFn(prop) ? prop(props, options) : prop, props ?? {}, config.format);
+      const text = isFn(prop) ? prop(vars, options) : prop;
+      return parse(text, vars ?? {}, config.format);
     }
     if (options?.fallback) {
       const prop = conf[options.fallback];
-      return parse(isFn(prop) ? prop(props, options) : prop, props ?? {}, config.format);
+      return parse(isFn(prop) ? prop(vars, options) : prop, vars ?? {}, config.format);
     }
     throw new Error(`Property ${key as string} not exist in`, conf);
   };
