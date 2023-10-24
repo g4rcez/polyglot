@@ -1,5 +1,5 @@
 // https://www.npmjs.com/package/locale-currency
-const localeCurrencyMap = {
+export const localeCurrencyMap = {
   AD: "EUR",
   AE: "AED",
   AF: "AFN",
@@ -249,21 +249,8 @@ const localeCurrencyMap = {
   ZW: "ZWL",
 } as const;
 
-type LocaleCurrencyMap = typeof localeCurrencyMap;
+export type LocaleCurrencyMap = typeof localeCurrencyMap;
 
 export type LocaleCurrencyCode = keyof LocaleCurrencyMap;
 
 export type CurrencyCode = (typeof localeCurrencyMap)[LocaleCurrencyCode];
-
-const getCountryCode = (localeString: string): LocaleCurrencyCode => {
-  const components = localeString.split("_");
-  if (components.length === 2) return components.pop()?.toUpperCase() as LocaleCurrencyCode;
-  const parts = localeString.split("-");
-  if (parts.length === 2) return parts.pop()?.toUpperCase() as LocaleCurrencyCode;
-  return localeString.toUpperCase() as LocaleCurrencyCode;
-};
-
-export const getCurrency = function (locale: string) {
-  const countryCode = getCountryCode(locale);
-  return countryCode in localeCurrencyMap ? localeCurrencyMap[countryCode] : null;
-};

@@ -1,5 +1,6 @@
 import { createGlobalReducer } from "use-typed-reducer";
-import { createPolyglot, InferLanguages, PolyglotFullConfig } from "~/polyglot/polyglot.core";
+import { createPolyglot, InferLanguages } from "~/polyglot/polyglot.core";
+import { PolyglotFullConfig } from "~/polyglot/types/types";
 
 export const createPolyglotStore = <Config extends ReturnType<typeof createPolyglot<any, any>>>(config: Config) =>
   createGlobalReducer(

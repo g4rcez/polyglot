@@ -1,6 +1,16 @@
-import { CurrencyCode } from "~/polyglot/locale-currency";
-import { Locales } from "~/polyglot/locales";
-import { Unit } from "~/polyglot/unit";
+import React from "react";
+import type { createFormatters } from "~/polyglot/parser";
+import { CurrencyCode } from "~/polyglot/types/currency";
+import { Locales } from "~/polyglot/types/locales";
+import { Unit } from "~/polyglot/types/unit";
+
+export type Label = string | React.ReactElement | React.ReactNode;
+
+export type GenericTranslationFn = (props: any, options?: PolyglotFullConfig) => any;
+
+export type TranslationMap = Record<string, Label | GenericTranslationFn>;
+
+export type Timezone = { label: string; offset: number };
 
 type DateFormat = Partial<{
   day: "numeric" | "2-digit";
@@ -32,6 +42,7 @@ type NumberFormat = Partial<{
 
 export type PolyglotConfig = Partial<{
   date: DateFormat;
+  timezone: string;
   datetime: DateFormat;
   money: NumberFormat;
   number: NumberFormat;
@@ -55,3 +66,27 @@ export type PolyglotFullConfig = Partial<
     fallback: string;
   }
 >;
+
+type Fmt = ReturnType<typeof createFormatters>;
+type Formatters = {
+  [K in keyof Fmt]: Parameters<Fmt[K]>[0];
+};
+
+type ExtractFormatter<
+  Key extends string,
+  Sentence extends string,
+> = Sentence extends `${infer _}{{${Key}|${infer F}}}${infer _}`
+  ? F extends keyof Formatters
+    ? Formatters[F]
+    : F
+  : unknown;
+
+export type ExtractVariables<T extends string> = string extends T
+  ? Record<string, string>
+  : T extends `${infer _}{{${infer R}}}${infer Rest}`
+  ? R extends `${infer Variable}|${infer _}`
+    ? { [K in Variable | keyof ExtractVariables<Rest>]: K extends string ? ExtractFormatter<K, T> : unknown }
+    : R extends `${infer Variable}`
+    ? { [k in Variable]: R }
+    : {}
+  : {};

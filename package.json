@@ -12,7 +12,9 @@
     "next": "13.5.4",
     "react": "^18",
     "react-dom": "^18",
-    "use-typed-reducer": "3.3.3"
+    "use-typed-reducer": "3.3.3",
+    "vite": "4.5.0",
+    "vitest": "0.34.6"
   },
   "devDependencies": {
     "@types/node": "^20",
